@@ -1,0 +1,160 @@
+import tkinter as tk
+import random
+
+# Define the size of the board
+BOARD_SIZE = 10
+
+# Initialize the Picross board and counts
+picrossboard = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
+horizontalcount = [[] for _ in range(BOARD_SIZE)]
+verticalcount = [[] for _ in range(BOARD_SIZE)]
+correct_cells = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]  # Track correct positions
+
+def picrossmaker(n):
+    """Generate a Picross board with `n` filled cells."""
+    global picrossboard, horizontalcount, verticalcount, correct_cells
+    picrossboard = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
+    horizontalcount = [[] for _ in range(BOARD_SIZE)]
+    verticalcount = [[] for _ in range(BOARD_SIZE)]
+    correct_cells = [[0] * BOARD_SIZE for _ in range(BOARD_SIZE)]
+
+    counter = 0
+    while counter < n:
+        i = random.randint(0, BOARD_SIZE - 1)
+        k = random.randint(0, BOARD_SIZE - 1)
+        if picrossboard[i][k] != 1:
+            picrossboard[i][k] = 1
+            correct_cells[i][k] = 1  # Mark this cell as correct
+            counter += 1
+
+    # Compute horizontal counts
+    for i in range(BOARD_SIZE):
+        count = 0
+        for k in range(BOARD_SIZE):
+            if picrossboard[i][k] == 1:
+                count += 1
+            elif count > 0:
+                horizontalcount[i].append(count)
+                count = 0
+        if count > 0:
+            horizontalcount[i].append(count)
+
+    # Compute vertical counts
+    for k in range(BOARD_SIZE):
+        count = 0
+        for i in range(BOARD_SIZE):
+            if picrossboard[i][k] == 1:
+                count += 1
+            elif count > 0:
+                verticalcount[k].append(count)
+                count = 0
+        if count > 0:
+            verticalcount[k].append(count)
+
+def toggle_label(event, label, row, col):
+    """Toggle the label color based on mouse click event and modifier keys."""
+    current_color = label.cget("bg")
+    
+    if event.state & 0x0001:  # Shift key is held down
+        new_color = "red" if current_color != "red" else "white"
+    elif event.num == 1:  # Left click
+        new_color = "green" if current_color != "green" else "white"
+    elif event.num == 3:  # Right click
+        new_color = "blue" if current_color != "blue" else "white"
+    else:
+        new_color = "white"
+    
+    if new_color == "green":
+        picrossboard[row][col] = 2  # Update the board state to green (2)
+        if correct_cells[row][col] == 0:  # If it is not correct
+            new_color = "blue"  # Change to blue
+            picrossboard[row][col] = 5  # Update the board state to blue (5)
+    elif new_color == "red":
+        picrossboard[row][col] = 3  # Update the board state to red (3)
+    elif new_color == "blue":
+        picrossboard[row][col] = 5  # Update the board state to blue (5)
+    else:
+        picrossboard[row][col] = 0  # Reset board state to blank (0)
+
+    label.config(bg=new_color)
+    print(f"Label at ({row}, {col}) color changed to {new_color}")  # Debug output
+
+def create_picross_board(root):
+    """Create the Picross board GUI with labels for counts."""
+    labels = [[None for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+
+    # Create labels for vertical counts
+    for col in range(BOARD_SIZE):
+        count_text = " ".join(map(str, verticalcount[col]))
+        label = tk.Label(root, text=count_text, padx=5, font=("Helvetica", 12), anchor="w", width=5)
+        label.grid(row=0, column=col + 1, sticky="n")
+
+    # Create labels for horizontal counts
+    for row in range(BOARD_SIZE):
+        count_text = " ".join(map(str, horizontalcount[row]))
+        label = tk.Label(root, text=count_text, padx=5, font=("Helvetica", 12), anchor="e", width=5)
+        label.grid(row=row + 1, column=0, sticky="e")
+
+    # Create labels for the board
+    for row in range(BOARD_SIZE):
+        for col in range(BOARD_SIZE):
+            label = tk.Label(root, width=4, height=2, bg="white", relief="raised",
+                            borderwidth=2, padx=5, pady=5, font=("Helvetica", 16),
+                            cursor="hand2")
+            label.bind("<Button-1>", lambda event, r=row, c=col: toggle_label(event, labels[r][c], r, c))
+            label.bind("<Button-3>", lambda event, r=row, c=col: toggle_label(event, labels[r][c], r, c))
+            label.grid(row=row + 1, column=col + 1, padx=2, pady=2)
+            labels[row][col] = label
+
+    return labels
+
+def update_labels():
+    """Update labels for horizontal and vertical counts."""
+    for row in range(BOARD_SIZE):
+        count_text = " ".join(map(str, horizontalcount[row]))
+        labels_horizontal[row].config(text=count_text)
+
+    for col in range(BOARD_SIZE):
+        count_text = " ".join(map(str, verticalcount[col]))
+        labels_vertical[col].config(text=count_text)
+
+def generate_board():
+    """Generate a new Picross board and update the GUI."""
+    picrossmaker(50)
+    update_labels()
+
+    # Clear the board colors
+    for row in range(BOARD_SIZE):
+        for col in range(BOARD_SIZE):
+            labels[row][col].config(bg="white")
+
+def main():
+    """Main function to set up the GUI and run the application."""
+    global root, labels_horizontal, labels_vertical, labels
+    root = tk.Tk()
+    root.title("Picross Board")
+
+    # Create the Picross board GUI
+    labels = create_picross_board(root)
+
+    # Create the Generate button
+    generate_button = tk.Button(root, text="Generate", command=generate_board, font=("Helvetica", 16))
+    generate_button.grid(row=BOARD_SIZE + 1, column=0, columnspan=BOARD_SIZE + 1, pady=20)
+
+    # Labels for counts
+    labels_horizontal = [tk.Label(root, text="", padx=5, font=("Helvetica", 12)) for _ in range(BOARD_SIZE)]
+    labels_vertical = [tk.Label(root, text="", padx=5, font=("Helvetica", 12)) for _ in range(BOARD_SIZE)]
+
+    for row in range(BOARD_SIZE):
+        labels_horizontal[row].grid(row=row + 1, column=0, sticky="e")
+    for col in range(BOARD_SIZE):
+        labels_vertical[col].grid(row=0, column=col + 1, sticky="n")
+
+    # Initial board setup
+    generate_board()
+
+    # Run the application
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
